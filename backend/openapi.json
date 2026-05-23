@@ -1,0 +1,677 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Personalized Job Search Automation Platform (PJSAP) API",
+    "description": "API specifications for the Personalized Job Search Automation Platform (PJSAP). Supports multi-source crawling, smart matching, secure credentials, and GDPR-compliant data operations.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "/api/v1",
+      "description": "Local API v1 Gateway"
+    }
+  ],
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "summary": "Register New User",
+        "operationId": "register_user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Email already registered"
+          }
+        }
+      }
+    },
+    "/auth/token": {
+      "post": {
+        "summary": "Get OAuth2 JWT Access Token",
+        "operationId": "get_access_token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_login_for_access_token"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful token generation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Token"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Incorrect email or password"
+          }
+        }
+      }
+    },
+    "/profile": {
+      "get": {
+        "summary": "Retrieve User Profile Target Settings",
+        "operationId": "get_profile",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Profile Retrieval",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfileResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update User Profile Target Settings",
+        "operationId": "update_profile",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserProfileUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profile updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfileResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated"
+          }
+        }
+      }
+    },
+    "/jobs": {
+      "get": {
+        "summary": "List & Search Crawled Jobs",
+        "operationId": "list_jobs",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Search query for elasticsearch",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful query retrieval",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/JobResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/matches": {
+      "get": {
+        "summary": "Get Ranked Job Matches",
+        "operationId": "get_matches",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filter by match status (pending, saved, applied, dismissed)",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job Matches successfully retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/JobMatchResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/matches/{job_id}/status": {
+      "put": {
+        "summary": "Update Job Match Status",
+        "operationId": "update_match_status",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "pending",
+                      "viewed",
+                      "saved",
+                      "applied",
+                      "dismissed"
+                    ]
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Match status updated"
+          }
+        }
+      }
+    },
+    "/social/credentials": {
+      "post": {
+        "summary": "Store Encrypted Social Credentials",
+        "operationId": "save_social_credentials",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SocialCredentialsUpsert"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tokens securely stored"
+          }
+        }
+      }
+    },
+    "/gdpr/export": {
+      "post": {
+        "summary": "GDPR Subject Access Request (Data Export)",
+        "operationId": "gdpr_export",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Complete personal data package",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "$ref": "#/components/schemas/UserResponse"
+                    },
+                    "profile": {
+                      "$ref": "#/components/schemas/UserProfileResponse"
+                    },
+                    "matches": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "audit_logs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gdpr/delete": {
+      "delete": {
+        "summary": "GDPR Account Deletion (Right to be Forgotten)",
+        "operationId": "gdpr_delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Account and all associated records deleted permanently"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "OAuth2PasswordBearer": {
+        "type": "oauth2",
+        "flows": {
+          "password": {
+            "tokenUrl": "auth/token",
+            "scopes": {}
+          }
+        }
+      }
+    },
+    "schemas": {
+      "UserCreate": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8
+          },
+          "full_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password",
+          "full_name"
+        ]
+      },
+      "UserResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "full_name",
+          "is_active",
+          "created_at"
+        ]
+      },
+      "Token": {
+        "type": "object",
+        "properties": {
+          "access_token": {
+            "type": "string"
+          },
+          "token_type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "access_token",
+          "token_type"
+        ]
+      },
+      "Body_login_for_access_token": {
+        "type": "object",
+        "properties": {
+          "grant_type": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string",
+            "default": ""
+          },
+          "client_id": {
+            "type": "string"
+          },
+          "client_secret": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ]
+      },
+      "UserProfileUpdate": {
+        "type": "object",
+        "properties": {
+          "target_titles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "target_locations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "salary_min": {
+            "type": "integer"
+          },
+          "experience_level": {
+            "type": "string"
+          },
+          "job_types": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "keywords": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "excluded_keywords": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "resume_url": {
+            "type": "string"
+          }
+        }
+      },
+      "UserProfileResponse": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "target_titles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "target_locations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "salary_min": {
+            "type": "integer"
+          },
+          "experience_level": {
+            "type": "string"
+          },
+          "job_types": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "keywords": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "excluded_keywords": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "resume_url": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "user_id",
+          "target_titles",
+          "target_locations",
+          "experience_level",
+          "job_types",
+          "keywords",
+          "excluded_keywords",
+          "updated_at"
+        ]
+      },
+      "JobResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "source": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "company": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "is_remote": {
+            "type": "boolean"
+          },
+          "description": {
+            "type": "string"
+          },
+          "salary_min": {
+            "type": "integer"
+          },
+          "salary_max": {
+            "type": "integer"
+          },
+          "salary_currency": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "posted_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "source",
+          "title",
+          "company",
+          "location",
+          "is_remote",
+          "description",
+          "url",
+          "posted_at"
+        ]
+      },
+      "JobMatchResponse": {
+        "type": "object",
+        "properties": {
+          "job": {
+            "$ref": "#/components/schemas/JobResponse"
+          },
+          "match_score": {
+            "type": "number"
+          },
+          "matching_details": {
+            "type": "object"
+          },
+          "status": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "job",
+          "match_score",
+          "matching_details",
+          "status",
+          "created_at"
+        ]
+      },
+      "SocialCredentialsUpsert": {
+        "type": "object",
+        "properties": {
+          "twitter_token": {
+            "type": "string"
+          },
+          "telegram_chat_id": {
+            "type": "string"
+          },
+          "whatsapp_phone": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

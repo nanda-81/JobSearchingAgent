@@ -1,0 +1,50 @@
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+venv*/
+
+# Python build, runtime, and caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Node.js dependencies and production builds
+node_modules/
+jspm_packages/
+web_modules/
+.npm
+.eslintcache
+dist/
+build/
+
+# Local databases and runtime stores
+*.db
+*.db-journal
+*.sqlite
+pjsap_dev.db
+pjsap_test.db
+.pjsap_dev.db
+
+# Sensitive local configurations and environments
+.env
+.env.*
+.secrets
+secrets.*
+*.key
+*.pem
+*.token
+jwt_secret_key*
+
+# OS specific files
+.DS_Store
+Thumbs.db
+desktop.ini

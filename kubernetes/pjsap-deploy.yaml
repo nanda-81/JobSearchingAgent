@@ -1,0 +1,280 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pjsap
+
+---
+# 1. PostgreSQL Datastore
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: pjsap
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        env:
+        - name: POSTGRES_USER
+          value: pjsap_user
+        - name: POSTGRES_PASSWORD
+          value: pjsap_secure_password
+        - name: POSTGRES_DB
+          value: pjsap_db
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-pvc
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: pjsap
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: pjsap
+spec:
+  ports:
+  - port: 5432
+  selector:
+    app: postgres
+
+---
+# 2. Redis Cache & Celery Broker
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: pjsap
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: pjsap
+spec:
+  ports:
+  - port: 6379
+  selector:
+    app: redis
+
+---
+# 3. Elasticsearch
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elasticsearch
+  namespace: pjsap
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elasticsearch
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+    spec:
+      containers:
+      - name: elasticsearch
+        image: docker.elastic.co/elasticsearch/elasticsearch:7.17.10
+        env:
+        - name: discovery.type
+          value: single-node
+        - name: ES_JAVA_OPTS
+          value: "-Xms512m -Xmx512m"
+        - name: xpack.security.enabled
+          value: "false"
+        ports:
+        - containerPort: 9200
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  namespace: pjsap
+spec:
+  ports:
+  - port: 9200
+  selector:
+    app: elasticsearch
+
+---
+# 4. RabbitMQ Broker
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq
+  namespace: pjsap
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbitmq
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+    spec:
+      containers:
+      - name: rabbitmq
+        image: rabbitmq:3-management-alpine
+        env:
+        - name: RABBITMQ_DEFAULT_USER
+          value: pjsap_rabbit
+        - name: RABBITMQ_DEFAULT_PASS
+          value: rabbit_secure_password
+        ports:
+        - containerPort: 5672
+        - containerPort: 15672
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+  namespace: pjsap
+spec:
+  ports:
+  - port: 5672
+    name: amqp
+  - port: 15672
+    name: management
+  selector:
+    app: rabbitmq
+
+---
+# 5. FastAPI Backend
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: pjsap
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend
+        image: your-registry/pjsap-backend:latest
+        env:
+        - name: DATABASE_URL
+          value: postgresql://pjsap_user:pjsap_secure_password@postgres:5432/pjsap_db
+        - name: REDIS_URL
+          value: redis://redis:6379/0
+        - name: ELASTICSEARCH_URL
+          value: http://elasticsearch:9200
+        - name: RABBITMQ_URL
+          value: amqp://pjsap_rabbit:rabbit_secure_password@rabbitmq:5672//
+        - name: SECRET_KEY
+          value: "38bde564177d4c885c3b0eb6190f898394e3328e18efc8db67d93dcb0653c9f2"
+        - name: ENCRYPTION_KEY
+          value: "Wk1oQU5hV1ZoWTNScFlqVXdOamMzT0Rsak16VTFOVFJqT1Rnd01URXk="
+        ports:
+        - containerPort: 8000
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 20
+          periodSeconds: 15
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: pjsap
+spec:
+  ports:
+  - port: 8000
+  selector:
+    app: backend
+
+---
+# 6. React Frontend
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: pjsap
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: your-registry/pjsap-frontend:latest
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: pjsap
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 80
+  selector:
+    app: frontend
