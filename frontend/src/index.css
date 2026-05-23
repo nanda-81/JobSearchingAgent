@@ -194,3 +194,10 @@ input:focus, textarea:focus, select:focus {
   clip: rect(0, 0, 0, 0);
   border: 0;
 }
+
+/* Responsive visibility utilities */
+@media (max-width: 640px) {
+  .hide-on-mobile {
+    display: none !important;
+  }
+}

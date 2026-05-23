@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Briefcase, Settings, Shield, User, LogOut, Key } from 'lucide-react'
+import { Briefcase, Shield, User, LogOut } from 'lucide-react'
 import Dashboard from './components/Dashboard'
 import ProfileForm from './components/ProfileForm'
 import GDPRControls from './components/GDPRControls'
@@ -242,7 +242,7 @@ export default function App() {
 
           {/* Logged in Identity info */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div style={{ textAlign: 'right', display: 'none', sm: 'block' }}>
+            <div className="hide-on-mobile" style={{ textAlign: 'right' }}>
               <span style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500 }}>{user?.full_name}</span>
               <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{user?.email}</span>
             </div>

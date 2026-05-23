@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Save, AlertCircle, Plus, X, Award, DollarSign } from 'lucide-react'
+import { Save, AlertCircle, Plus, X, DollarSign } from 'lucide-react'
 
 interface ProfileFormProps {
   token: string
@@ -15,9 +15,9 @@ export default function ProfileForm({ token, API_BASE }: ProfileFormProps) {
 
   const [salaryMin, setSalaryMin] = useState<number | ''>('')
   const [experienceLevel, setExperienceLevel] = useState('mid')
-  
+
   const [jobTypes, setJobTypes] = useState<string[]>([])
-  
+
   const [keywords, setKeywords] = useState<string[]>([])
   const [kwInput, setKwInput] = useState('')
 
@@ -25,7 +25,7 @@ export default function ProfileForm({ token, API_BASE }: ProfileFormProps) {
   const [exInput, setExInput] = useState('')
 
   const [resumeUrl, setResumeUrl] = useState('')
-  
+
   const [msg, setMsg] = useState({ text: '', type: '' })
   const [saving, setSaving] = useState(false)
 
@@ -58,7 +58,7 @@ export default function ProfileForm({ token, API_BASE }: ProfileFormProps) {
     e.preventDefault()
     setSaving(true)
     setMsg({ text: '', type: '' })
-    
+
     try {
       const payload = {
         target_titles: targetTitles,
@@ -73,7 +73,7 @@ export default function ProfileForm({ token, API_BASE }: ProfileFormProps) {
 
       const res = await fetch(`${API_BASE}/profile`, {
         method: 'PUT',
-        headers: { 
+        headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
@@ -122,30 +122,30 @@ export default function ProfileForm({ token, API_BASE }: ProfileFormProps) {
       </div>
 
       <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-        
+
         {/* ROW 1: Titles & Locations */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', flexWrap: 'wrap' }}>
           {/* Target Titles Tag Editor */}
           <div>
             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>Target Job Titles</label>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-              <input 
-                type="text" 
-                value={titleInput} 
-                onChange={(e) => setTitleInput(e.target.value)} 
+              <input
+                type="text"
+                value={titleInput}
+                onChange={(e) => setTitleInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag(titleInput, setTitleInput, targetTitles, setTargetTitles))}
-                placeholder="Software Engineer, Tech Lead..." 
+                placeholder="Software Engineer, Tech Lead..."
               />
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => addTag(titleInput, setTitleInput, targetTitles, setTargetTitles)}
-                className="btn btn-secondary" 
+                className="btn btn-secondary"
                 style={{ padding: '0 12px' }}
               >
                 <Plus size={16} />
               </button>
             </div>
-            
+
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
               {targetTitles.map((t, idx) => (
                 <span key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-glass)', padding: '4px 10px', borderRadius: '16px', fontSize: '0.8rem' }}>
@@ -159,23 +159,23 @@ export default function ProfileForm({ token, API_BASE }: ProfileFormProps) {
           <div>
             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>Target Locations</label>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-              <input 
-                type="text" 
-                value={locInput} 
-                onChange={(e) => setLocInput(e.target.value)} 
+              <input
+                type="text"
+                value={locInput}
+                onChange={(e) => setLocInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag(locInput, setLocInput, targetLocations, setTargetLocations))}
-                placeholder="Remote, New York, London..." 
+                placeholder="Remote, New York, London..."
               />
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => addTag(locInput, setLocInput, targetLocations, setTargetLocations)}
-                className="btn btn-secondary" 
+                className="btn btn-secondary"
                 style={{ padding: '0 12px' }}
               >
                 <Plus size={16} />
               </button>
             </div>
-            
+
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
               {targetLocations.map((l, idx) => (
                 <span key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-glass)', padding: '4px 10px', borderRadius: '16px', fontSize: '0.8rem' }}>
@@ -192,11 +192,11 @@ export default function ProfileForm({ token, API_BASE }: ProfileFormProps) {
             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>Minimum Desired Salary ($ / Year)</label>
             <div style={{ position: 'relative' }}>
               <DollarSign size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-              <input 
-                type="number" 
-                value={salaryMin} 
-                onChange={(e) => setSalaryMin(e.target.value !== '' ? Number(e.target.value) : '')} 
-                placeholder="120000" 
+              <input
+                type="number"
+                value={salaryMin}
+                onChange={(e) => setSalaryMin(e.target.value !== '' ? Number(e.target.value) : '')}
+                placeholder="120000"
                 style={{ paddingLeft: '32px' }}
                 min={0}
               />
@@ -222,10 +222,10 @@ export default function ProfileForm({ token, API_BASE }: ProfileFormProps) {
               const checked = jobTypes.includes(type)
               return (
                 <label key={type} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={checked} 
-                    onChange={() => toggleJobType(type)} 
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleJobType(type)}
                     style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                   />
                   <span>{type}</span>
@@ -241,23 +241,23 @@ export default function ProfileForm({ token, API_BASE }: ProfileFormProps) {
           <div>
             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>Positive Keywords (Boost Score)</label>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-              <input 
-                type="text" 
-                value={kwInput} 
-                onChange={(e) => setKwInput(e.target.value)} 
+              <input
+                type="text"
+                value={kwInput}
+                onChange={(e) => setKwInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag(kwInput, setKwInput, keywords, setKeywords))}
-                placeholder="Python, React, AWS..." 
+                placeholder="Python, React, AWS..."
               />
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => addTag(kwInput, setKwInput, keywords, setKeywords)}
-                className="btn btn-secondary" 
+                className="btn btn-secondary"
                 style={{ padding: '0 12px' }}
               >
                 <Plus size={16} />
               </button>
             </div>
-            
+
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
               {keywords.map((k, idx) => (
                 <span key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: 'rgba(52, 211, 153, 0.1)', border: '1px solid var(--success)', color: 'var(--success)', padding: '4px 10px', borderRadius: '16px', fontSize: '0.8rem' }}>
@@ -271,23 +271,23 @@ export default function ProfileForm({ token, API_BASE }: ProfileFormProps) {
           <div>
             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>Excluded Keywords (Strict Block 0.0 Score)</label>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-              <input 
-                type="text" 
-                value={exInput} 
-                onChange={(e) => setExInput(e.target.value)} 
+              <input
+                type="text"
+                value={exInput}
+                onChange={(e) => setExInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag(exInput, setExInput, excludedKeywords, setExcludedKeywords))}
-                placeholder="PHP, WordPress, Cobalt..." 
+                placeholder="PHP, WordPress, Cobalt..."
               />
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => addTag(exInput, setExInput, excludedKeywords, setExcludedKeywords)}
-                className="btn btn-secondary" 
+                className="btn btn-secondary"
                 style={{ padding: '0 12px' }}
               >
                 <Plus size={16} />
               </button>
             </div>
-            
+
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
               {excludedKeywords.map((e_kw, idx) => (
                 <span key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: 'rgba(248, 113, 113, 0.1)', border: '1px solid var(--error)', color: 'var(--error)', padding: '4px 10px', borderRadius: '16px', fontSize: '0.8rem' }}>
@@ -301,23 +301,23 @@ export default function ProfileForm({ token, API_BASE }: ProfileFormProps) {
         {/* Resume URL */}
         <div>
           <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>Resume / Portfolio URL</label>
-          <input 
-            type="url" 
-            value={resumeUrl} 
-            onChange={(e) => setResumeUrl(e.target.value)} 
-            placeholder="https://portfolio.me/my-resume.pdf" 
+          <input
+            type="url"
+            value={resumeUrl}
+            onChange={(e) => setResumeUrl(e.target.value)}
+            placeholder="https://portfolio.me/my-resume.pdf"
           />
         </div>
 
         {/* Notifications and Submission */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', borderTop: '1px solid var(--border-glass)', paddingTop: '24px' }}>
           {msg.text && (
-            <div style={{ 
-              backgroundColor: msg.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', 
-              border: `1px solid ${msg.type === 'success' ? 'var(--success)' : 'var(--error)'}`, 
-              padding: '12px 16px', 
-              borderRadius: 'var(--radius-sm)', 
-              color: msg.type === 'success' ? 'var(--success)' : 'var(--error)', 
+            <div style={{
+              backgroundColor: msg.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+              border: `1px solid ${msg.type === 'success' ? 'var(--success)' : 'var(--error)'}`,
+              padding: '12px 16px',
+              borderRadius: 'var(--radius-sm)',
+              color: msg.type === 'success' ? 'var(--success)' : 'var(--error)',
               fontSize: '0.9rem',
               display: 'flex',
               alignItems: 'center',

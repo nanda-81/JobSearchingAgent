@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { ExternalLink, Bookmark, Check, Trash2, Calendar, MapPin, Building, ChevronDown, ChevronUp, Sparkles } from 'lucide-react'
 
 export interface Job {

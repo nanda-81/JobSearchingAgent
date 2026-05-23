@@ -2,7 +2,7 @@ import React from 'react'
 import { render, screen } from '@testing-library/react'
 import JobList, { Match } from '../components/JobList'
 
-# Mock JobList component test structure
+// Mock JobList component test structure
 describe('JobList Component UI Rendering', () => {
   const dummyMatches: Match[] = [
     {

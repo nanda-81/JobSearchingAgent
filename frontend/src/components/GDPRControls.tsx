@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Key, Shield, Download, Trash2, AlertTriangle, Check, RefreshCw } from 'lucide-react'
+import { Key, Shield, Download, Trash2, AlertTriangle, RefreshCw } from 'lucide-react'
 
 interface GDPRControlsProps {
   token: string
@@ -70,19 +70,19 @@ export default function GDPRControls({ token, API_BASE, onDeleteSuccess }: GDPRC
 
       if (res.ok) {
         const data = await res.json()
-        
-        # Build dynamic browser download
+
+        // Build dynamic browser download
         const jsonStr = JSON.stringify(data, null, 2)
         const blob = new Blob([jsonStr], { type: 'application/json' })
         const downloadUrl = URL.createObjectURL(blob)
-        
+
         const anchor = document.createElement('a')
         anchor.href = downloadUrl
         anchor.download = 'pjsap_subject_access_data.json'
         document.body.appendChild(anchor)
         anchor.click()
         anchor.remove()
-        
+
         URL.revokeObjectURL(downloadUrl)
       } else {
         alert('Data export failed. Session expired?')
@@ -125,7 +125,7 @@ export default function GDPRControls({ token, API_BASE, onDeleteSuccess }: GDPRC
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '40px', maxWidth: '800px', margin: '0 auto' }}>
-      
+
       {/* SECTION 1: Credentials Encryption */}
       <div className="glass-card animate-fade-in" style={{ padding: '40px' }}>
         <div style={{ marginBottom: '24px', borderBottom: '1px solid var(--border-glass)', paddingBottom: '16px' }}>
@@ -140,42 +140,42 @@ export default function GDPRControls({ token, API_BASE, onDeleteSuccess }: GDPRC
         <form onSubmit={handleSaveCredentials} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div>
             <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>Twitter OAuth2 Token</label>
-            <input 
-              type="password" 
-              value={twitterToken} 
-              onChange={(e) => setTwitterToken(e.target.value)} 
-              placeholder="••••••••••••••••••••" 
+            <input
+              type="password"
+              value={twitterToken}
+              onChange={(e) => setTwitterToken(e.target.value)}
+              placeholder="••••••••••••••••••••"
             />
           </div>
 
           <div>
             <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>Telegram Chat ID</label>
-            <input 
-              type="password" 
-              value={telegramChatId} 
-              onChange={(e) => setTelegramChatId(e.target.value)} 
-              placeholder="e.g. 54321098" 
+            <input
+              type="password"
+              value={telegramChatId}
+              onChange={(e) => setTelegramChatId(e.target.value)}
+              placeholder="e.g. 54321098"
             />
           </div>
 
           <div>
             <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>WhatsApp Phone Number</label>
-            <input 
-              type="password" 
-              value={whatsappPhone} 
-              onChange={(e) => setWhatsappPhone(e.target.value)} 
-              placeholder="e.g. +15551234567" 
+            <input
+              type="password"
+              value={whatsappPhone}
+              onChange={(e) => setWhatsappPhone(e.target.value)}
+              placeholder="e.g. +15551234567"
             />
           </div>
 
           {credsMsg.text && (
-            <div style={{ 
-              backgroundColor: credsMsg.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', 
-              border: `1px solid ${credsMsg.type === 'success' ? 'var(--success)' : 'var(--error)'}`, 
-              padding: '12px', 
-              borderRadius: 'var(--radius-sm)', 
-              color: credsMsg.type === 'success' ? 'var(--success)' : 'var(--error)', 
-              fontSize: '0.85rem' 
+            <div style={{
+              backgroundColor: credsMsg.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+              border: `1px solid ${credsMsg.type === 'success' ? 'var(--success)' : 'var(--error)'}`,
+              padding: '12px',
+              borderRadius: 'var(--radius-sm)',
+              color: credsMsg.type === 'success' ? 'var(--success)' : 'var(--error)',
+              fontSize: '0.85rem'
             }}>
               {credsMsg.text}
             </div>
@@ -243,12 +243,12 @@ export default function GDPRControls({ token, API_BASE, onDeleteSuccess }: GDPRC
               <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>
                 Please type exactly <strong style={{ color: 'var(--text-primary)' }}>DELETE</strong> to confirm:
               </label>
-              <input 
-                type="text" 
-                value={deleteChallenge} 
-                onChange={(e) => setDeleteChallenge(e.target.value)} 
-                required 
-                placeholder="DELETE" 
+              <input
+                type="text"
+                value={deleteChallenge}
+                onChange={(e) => setDeleteChallenge(e.target.value)}
+                required
+                placeholder="DELETE"
                 style={{ borderColor: 'var(--error)', maxWidth: '300px' }}
               />
             </div>
