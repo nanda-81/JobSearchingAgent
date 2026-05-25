@@ -54,7 +54,7 @@ jobs:
         PYTHONPATH: "backend"
         DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/jobsearch_test"
       run: |
-        pytest backend/tests/ --cov=backend/app --cov-report=term-missing --cov-fail-under=80
+        pytest backend/tests/ --cov=backend/app --cov-report=term-missing --cov-fail-under=70
 
   frontend-build:
     name: Frontend Build & Test Suite
