@@ -1,3 +1,7 @@
+import os
+# Force settings database URL to in-memory SQLite during test sessions
+os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine

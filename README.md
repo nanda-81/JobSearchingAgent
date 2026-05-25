@@ -191,7 +191,7 @@ erDiagram
         timestamp updated_at
     }
     USER_PROFILES {
-        uuid user_id PK_FK
+        uuid user_id PK "FK to USERS"
         jsonb target_titles
         jsonb target_locations
         integer salary_min
@@ -222,8 +222,8 @@ erDiagram
         timestamp created_at
     }
     JOB_MATCHES {
-        uuid user_id PK_FK
-        uuid job_id PK_FK
+        uuid user_id PK "FK to USERS"
+        uuid job_id PK "FK to JOBS"
         double match_score
         jsonb matching_details
         varchar status
@@ -231,7 +231,7 @@ erDiagram
         timestamp updated_at
     }
     SOCIAL_CREDENTIALS {
-        uuid user_id PK_FK
+        uuid user_id PK "FK to USERS"
         text twitter_token
         varchar telegram_chat_id
         varchar whatsapp_phone
