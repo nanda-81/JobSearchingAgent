@@ -18,7 +18,13 @@ class Settings(BaseSettings):
     ENCRYPTION_KEY: str = "Wk1oQU5hV1ZoWTNScFlqVXdOamMzT0Rsak16VTFOVFJqT1Rnd01URXk="
     
     # Databases & Services
-    DATABASE_URL: str = "postgresql://pjsap_user:pjsap_secure_password@localhost:5432/pjsap_db"
+    DATABASE_URL: str = (
+        "sqlite:///:memory:"
+        if (any(x in os.environ for x in ["PYTEST_CURRENT_TEST", "TESTING"]) or "pytest" in __import__("sys").modules)
+        else "postgresql://pjsap_user:pjsap_secure_password@localhost:5432/pjsap_db"
+    )
+
+
     REDIS_URL: str = "redis://localhost:6379/0"
     ELASTICSEARCH_URL: str = "http://localhost:9200"
     RABBITMQ_URL: str = "amqp://pjsap_rabbit:rabbit_secure_password@localhost:5672//"
