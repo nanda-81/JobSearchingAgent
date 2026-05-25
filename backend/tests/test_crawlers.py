@@ -7,7 +7,9 @@ from app.schemas.job import JobCreate
 from app.services.crawler.base import BaseCrawler, CircuitBreakerOpenException
 from app.services.crawler.linkedin import LinkedInCrawler
 from app.services.crawler.github import GitHubCrawler
+from app.services.crawler.indeed import IndeedCrawler
 from app.tasks.jobs import crawl_and_normalize_jobs, generate_job_hash, Job
+
 
 # 1. Pydantic validation tests
 def test_job_create_validation_success():
@@ -124,7 +126,7 @@ def test_github_crawler_normalization():
         assert "weworkremotely.com" in job.url or job.url.startswith("https://")
 
 # 4. Celery background task integration test (SQLite testing database)
-def test_crawl_and_normalize_jobs_task(db):
+def test_crawl_and_normalize_jobs_task(db, monkeypatch):
     # Seed user profile and user to cover matching engine and career digests notification paths
     import uuid
     from app.models.user import User
@@ -150,11 +152,70 @@ def test_crawl_and_normalize_jobs_task(db):
     db.add(test_profile)
     db.commit()
 
+    # Mock the live crawlers to avoid non-deterministic live network dependencies
+    def mock_fetch_linkedin(self, query: str, limit: int = 10):
+        return [
+            JobCreate(
+                source="linkedin",
+                original_id="li-mock-1",
+                title=f"Mock LinkedIn Django Developer",
+                company="LinkedInCorp",
+                location="Remote",
+                is_remote=True,
+                description="Mock Django description",
+                salary_min=100000,
+                salary_max=120000,
+                salary_currency="USD",
+                url="https://linkedin.com/jobs/mock-1",
+                posted_at=datetime.now(timezone.utc)
+            )
+        ]
+
+    def mock_fetch_github(self, query: str, limit: int = 10):
+        return [
+            JobCreate(
+                source="github",
+                original_id="gh-mock-1",
+                title=f"Mock GitHub Django Developer",
+                company="GitHubCorp",
+                location="Remote",
+                is_remote=True,
+                description="Mock Django description",
+                salary_min=110000,
+                salary_max=130000,
+                salary_currency="USD",
+                url="https://weworkremotely.com/jobs/mock-1",
+                posted_at=datetime.now(timezone.utc)
+            )
+        ]
+
+    def mock_fetch_indeed(self, query: str, limit: int = 10):
+        return [
+            JobCreate(
+                source="indeed",
+                original_id="id-mock-1",
+                title=f"Mock Indeed Django Developer",
+                company="IndeedCorp",
+                location="Remote",
+                is_remote=True,
+                description="Mock Django description",
+                salary_min=105000,
+                salary_max=125000,
+                salary_currency="USD",
+                url="https://indeed.com/jobs/mock-1",
+                posted_at=datetime.now(timezone.utc)
+            )
+        ]
+
+    monkeypatch.setattr(LinkedInCrawler, "fetch_jobs", mock_fetch_linkedin)
+    monkeypatch.setattr(GitHubCrawler, "fetch_jobs", mock_fetch_github)
+    monkeypatch.setattr(IndeedCrawler, "fetch_jobs", mock_fetch_indeed)
+
     # Seed random generator to ensure exact duplicate outputs on second crawl
     random.seed(42)
     results = crawl_and_normalize_jobs(query="Django", limit_per_source=2, db_session=db)
     
-    assert results["status"] in ["success", "partial_failure"]
+    assert results["status"] == "success"
     crawled_count = results["jobs_crawled_count"]
     assert crawled_count > 0
     assert results["new_jobs_saved"] == crawled_count
@@ -172,6 +233,7 @@ def test_crawl_and_normalize_jobs_task(db):
     
     # Confirm DB size remains identical
     assert len(db.query(Job).all()) == crawled_count
+
 
 def test_get_company_careers_url(monkeypatch):
     from app.tasks.jobs import get_company_careers_url
@@ -198,4 +260,82 @@ def test_get_alternative_portal_url():
     url = get_alternative_portal_url("Python Developer", "Tech Corp")
     assert "linkedin.com" in url
     assert "Python%20Developer%20Tech%20Corp" in url
+
+def test_indeed_crawler_normalization(monkeypatch):
+    crawler = IndeedCrawler()
+    
+    # Mock successful JSON response from Arbeitnow API
+    def mock_request(method, url, **kwargs):
+        response = requests.Response()
+        response.status_code = 200
+        response._content = b'{"data": [{"slug": "indeed-job-1", "title": "Indeed Engineer", "company_name": "IndeedCorp", "location": "Remote", "remote": true, "description": "Django role", "created_at": 1715000000, "url": "https://arbeitnow.com/job/1", "tags": ["python"], "job_types": ["full-time"]}]}'
+        return response
+        
+    monkeypatch.setattr(requests, "request", mock_request)
+    
+    jobs = crawler.fetch_jobs("Django", limit=1)
+    assert len(jobs) == 1
+    assert jobs[0].source == "arbeitnow"
+    assert jobs[0].title == "Indeed Engineer"
+    assert jobs[0].company == "IndeedCorp"
+
+def test_linkedin_crawler_mocked_normalization(monkeypatch):
+    crawler = LinkedInCrawler()
+    
+    mock_html = """
+    <div class="job-search-card" data-entity-urn="urn:li:jobPosting:12345">
+        <h3 class="base-search-card__title">LinkedIn Mock Engineer</h3>
+        <a class="hidden-nested-link">LinkedInCorp</a>
+        <span class="job-search-card__location">Remote</span>
+        <time datetime="2026-05-25">2026-05-25</time>
+        <a href="https://www.linkedin.com/jobs/view/12345?refId=1">Link</a>
+    </li>
+    """
+    
+    def mock_request(method, url, **kwargs):
+        response = requests.Response()
+        response.status_code = 200
+        response._content = mock_html.encode("utf-8")
+        return response
+        
+    monkeypatch.setattr(requests, "request", mock_request)
+    
+    jobs = crawler.fetch_jobs("Django", limit=1)
+    assert len(jobs) == 1
+    assert jobs[0].source == "linkedin"
+    assert jobs[0].title == "LinkedIn Mock Engineer"
+    assert jobs[0].company == "LinkedInCorp"
+
+def test_github_crawler_mocked_normalization(monkeypatch):
+    crawler = GitHubCrawler()
+    
+    mock_xml = """
+    <rss xmlns:dc="http://purl.org/dc/elements/1.1/">
+        <channel>
+            <item>
+                <title>Speechify Inc: Senior Software Engineer (Web)</title>
+                <dc:creator>Speechify Inc</dc:creator>
+                <description>A Django description</description>
+                <pubDate>Mon, 25 May 2026 12:00:00 +0000</pubDate>
+                <link>https://weworkremotely.com/jobs/1</link>
+                <guid>wwr-1</guid>
+            </item>
+        </channel>
+    </rss>
+    """
+    
+    def mock_request(method, url, **kwargs):
+        response = requests.Response()
+        response.status_code = 200
+        response._content = mock_xml.encode("utf-8")
+        return response
+        
+    monkeypatch.setattr(requests, "request", mock_request)
+    
+    jobs = crawler.fetch_jobs("Django", limit=1)
+    assert len(jobs) == 1
+    assert jobs[0].source == "github"
+    assert jobs[0].title == "Senior Software Engineer (Web)"
+    assert jobs[0].company == "Speechify Inc"
+
 

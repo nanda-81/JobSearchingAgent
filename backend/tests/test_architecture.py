@@ -62,3 +62,13 @@ def test_docker_compose_validity():
     assert "rabbitmq" in services
     assert "backend" in services
     assert "frontend" in services
+
+def test_health_check_endpoint(client):
+    response = client.get("/health")
+    assert response.status_code in [200, 503]
+    
+def test_root_endpoint(client):
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "Welcome to PJSAP" in response.json()["message"]
+
