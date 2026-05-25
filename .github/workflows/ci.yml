@@ -11,6 +11,21 @@ jobs:
     name: Backend Test & Lint Suite
     runs-on: ubuntu-latest
     
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: jobsearch_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
     steps:
     - name: Checkout Code Repository
       uses: actions/checkout@v4
@@ -35,8 +50,9 @@ jobs:
     - name: Run Pytest Coverage Suite
       env:
         SECRET_KEY: "38bde564177d4c885c3b0eb6190f898394e3328e18efc8db67d93dcb0653c9f2"
-        ENCRYPTION_KEY: "Wk1oQU5hV1ZoWTNScFlqVXdOamMzT0Rsak16VTFOVFJqT1Rnd01URXk="
+        ENCRYPTION_KEY: "Wk1oQU5hV1ZoWTNScFlqVXdOamMzT0Rsak16VTUxNVRSak9Ubd01URXk="
         PYTHONPATH: "backend"
+        DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/jobsearch_test"
       run: |
         pytest backend/tests/ --cov=backend/app --cov-report=term-missing --cov-fail-under=80
 
