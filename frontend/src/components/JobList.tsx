@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { ExternalLink, Bookmark, Check, Trash2, Calendar, MapPin, Building, ChevronDown, ChevronUp, Sparkles } from 'lucide-react'
+import { ExternalLink, Bookmark, Check, Trash2, Calendar, MapPin, Building, ChevronDown, ChevronUp, Sparkles, AlertCircle } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 export interface Job {
   id: string
@@ -35,16 +36,57 @@ export interface Match {
 interface JobListProps {
   matches: Match[]
   onStatusUpdate: (jobId: string, newStatus: string) => void
+  token: string
+  API_BASE: string
 }
 
-export default function JobList({ matches, onStatusUpdate }: JobListProps) {
+export default function JobList({ matches, onStatusUpdate, token, API_BASE }: JobListProps) {
   const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null)
+  const [csvLoadingId, setCsvLoadingId] = useState<string | null>(null)
 
-  const getScoreColor = (score: number) => {
+  const handleAddToCSV = async (jobId: string) => {
+    setCsvLoadingId(jobId)
+    try {
+      const res = await fetch(`${API_BASE}/matches/${jobId}/export-to-file`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        alert(`📂 ${data.message}\nSaved at: ${data.file_path}`)
+      } else {
+        const err = await res.json()
+        alert(`⚠️ Failed: ${err.detail || 'Could not write to local CSV'}`)
+      }
+    } catch {
+      alert("⚠️ Error connecting to server spreadsheet endpoint.")
+    } finally {
+      setCsvLoadingId(null)
+    }
+  }
+
+  const getScoreTheme = (score: number) => {
     const percent = score * 100
-    if (percent >= 80) return 'var(--success)'
-    if (percent >= 50) return 'var(--warning)'
-    return 'var(--accent)'
+    if (percent >= 80) return {
+      color: '#10b981', // Emerald
+      bg: 'rgba(16, 185, 129, 0.1)',
+      border: 'rgba(16, 185, 129, 0.25)',
+      glow: '0 0 15px rgba(16, 185, 129, 0.15)'
+    }
+    if (percent >= 50) return {
+      color: '#f59e0b', // Amber
+      bg: 'rgba(245, 158, 11, 0.1)',
+      border: 'rgba(245, 158, 11, 0.25)',
+      glow: '0 0 15px rgba(245, 158, 11, 0.12)'
+    }
+    return {
+      color: '#0ea5e9', // Steel-blue
+      bg: 'rgba(14, 165, 233, 0.1)',
+      border: 'rgba(14, 165, 233, 0.25)',
+      glow: '0 0 15px rgba(14, 165, 233, 0.15)'
+    }
   }
 
   const formatRelativeDate = (dateStr: string) => {
@@ -64,173 +106,244 @@ export default function JobList({ matches, onStatusUpdate }: JobListProps) {
 
   if (matches.length === 0) {
     return (
-      <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-secondary)' }}>
-        <p style={{ fontSize: '1.1rem', marginBottom: '8px' }}>No matches found yet.</p>
-        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Try running a manual job search above or update your target matching preferences.</p>
-      </div>
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="text-center py-20 bg-slate-900/40 border border-slate-800/80 rounded-2xl"
+      >
+        <AlertCircle className="h-10 w-10 text-slate-500 mx-auto mb-4" />
+        <h3 className="text-base font-bold text-white mb-1">No matches found yet</h3>
+        <p className="text-slate-400 text-xs font-medium max-w-[340px] mx-auto">
+          Verify target preferences are configured or dispatch the crawler pipelines manually using the buttons above.
+        </p>
+      </motion.div>
     )
   }
 
+  const listContainerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.08
+      }
+    }
+  }
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 15 },
+    show: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 260, damping: 25 } }
+  }
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <motion.div 
+      variants={listContainerVariants}
+      initial="hidden"
+      animate="show"
+      className="space-y-6"
+    >
       {matches.map((match) => {
         const job = match.job
         const percent = Math.round(match.match_score * 100)
         const isExpanded = expandedMatchId === job.id
-        const scoreColor = getScoreColor(match.match_score)
+        const scoreTheme = getScoreTheme(match.match_score)
 
         return (
-          <div 
-            key={job.id} 
-            className="glass-card animate-fade-in" 
-            style={{ 
-              padding: '24px', 
-              display: 'flex', 
-              flexDirection: 'column', 
-              gap: '16px',
-              borderLeft: `4px solid ${scoreColor}`
-            }}
+          <motion.div 
+            key={job.id}
+            variants={itemVariants}
+            whileHover={{ scale: 1.01, translateY: -2 }}
+            transition={{ duration: 0.2 }}
+            className="glass-panel p-6 rounded-2xl relative overflow-hidden transition-all duration-300 hover:border-slate-700/80 hover:shadow-glow-primary border-l-4"
+            style={{ borderLeftColor: scoreTheme.color }}
           >
-            {/* Upper row: Title, company, score */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' }}>
+            {/* Header section: Titles & badges */}
+            <div className="flex justify-between items-start flex-wrap gap-4 mb-4">
               <div>
-                <h3 style={{ fontSize: '1.2rem', color: 'var(--text-primary)', marginBottom: '8px' }}>{job.title}</h3>
+                <h3 className="text-lg font-bold text-white mb-2 leading-snug tracking-tight">
+                  {job.title}
+                </h3>
                 
-                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    <Building size={14} /> {job.company}
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-semibold text-slate-400">
+                  <span className="flex items-center gap-1.5">
+                    <Building className="h-4 w-4 text-slate-500" /> {job.company}
                   </span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    <MapPin size={14} /> {job.location}
+                  <span className="flex items-center gap-1.5">
+                    <MapPin className="h-4 w-4 text-slate-500" /> {job.location}
                     {job.is_remote && (
-                      <span className="brand-gradient" style={{ padding: '2px 8px', borderRadius: '10px', fontSize: '0.7rem', color: 'white', fontWeight: 600, marginLeft: '6px' }}>
+                      <span className="ml-2 px-2 py-0.5 bg-accent-primary/10 border border-accent-primary/20 text-accent-primary text-[9px] font-bold uppercase rounded-md tracking-wider">
                         Remote
                       </span>
                     )}
                   </span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    <Calendar size={14} /> {formatRelativeDate(job.posted_at)}
+                  <span className="flex items-center gap-1.5">
+                    <Calendar className="h-4 w-4 text-slate-500" /> {formatRelativeDate(job.posted_at)}
                   </span>
                 </div>
               </div>
 
-              {/* Match Relevancy Badge */}
+              {/* Match Relevancy Badge with gradient glow */}
               <div 
+                className="px-4 py-1.5 text-xs font-extrabold rounded-full flex items-center gap-1.5 tracking-wider border text-white"
                 style={{ 
-                  display: 'inline-flex', 
-                  alignItems: 'center', 
-                  gap: '6px', 
-                  backgroundColor: 'rgba(15, 23, 42, 0.4)', 
-                  border: `1px solid ${scoreColor}`, 
-                  padding: '6px 14px', 
-                  borderRadius: '20px',
-                  fontWeight: 600,
-                  fontSize: '0.9rem',
-                  color: scoreColor,
-                  boxShadow: `0 0 10px ${scoreColor}20`
+                  backgroundColor: scoreTheme.bg,
+                  borderColor: scoreTheme.border,
+                  boxShadow: scoreTheme.glow,
+                  color: scoreTheme.color
                 }}
               >
-                <Sparkles size={14} />
+                <Sparkles className="h-3.5 w-3.5" />
                 <span>{percent}% Match</span>
               </div>
             </div>
 
-            {/* Description Preview */}
-            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {job.description}
+            {/* Description Preview (Clean) */}
+            <p className="text-slate-400 text-sm font-medium leading-relaxed mb-4 line-clamp-2">
+              {job.description ? job.description.replace(/<[^>]*>/g, '') : 'No description provided.'}
             </p>
 
             {/* Salary block if exists */}
             {(job.salary_min || job.salary_max) && (
-              <div style={{ fontSize: '0.85rem', color: 'var(--success)', fontWeight: 500 }}>
+              <div className="mb-4 inline-flex items-center px-3 py-1 bg-success/5 border border-success/15 rounded-lg text-xs font-bold text-success">
                 Estimated Salary: {job.salary_currency || 'USD'} {job.salary_min ? job.salary_min.toLocaleString() : 'N/A'} - {job.salary_max ? job.salary_max.toLocaleString() : 'N/A'}
               </div>
             )}
 
-            {/* Matching Engine details toggler */}
-            <div style={{ borderTop: '1px solid var(--border-glass)', paddingTop: '16px' }}>
+            {/* Expander Drawer trigger */}
+            <div className="border-t border-slate-800/80 pt-4 mt-2">
               <button 
                 onClick={() => setExpandedMatchId(isExpanded ? null : job.id)}
-                style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 500 }}
+                className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-accent-primary hover:text-accent-primary/95 hover:underline transition-colors"
               >
                 {isExpanded ? (
-                  <>Hide Matching Score Explanation <ChevronUp size={14} /></>
+                  <>
+                    <span>Hide Matching Analytics</span>
+                    <ChevronUp className="h-3.5 w-3.5" />
+                  </>
                 ) : (
-                  <>Show Matching Score Explanation <ChevronDown size={14} /></>
+                  <>
+                    <span>Inspect Target Requirements</span>
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </>
                 )}
               </button>
 
-              {isExpanded && (
-                <div style={{ marginTop: '16px', padding: '16px', backgroundColor: 'var(--bg-secondary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-glass)' }}>
-                  <h4 style={{ fontSize: '0.85rem', color: 'var(--text-primary)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    Match Analytics Breakdown
-                  </h4>
-                  
-                  <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                    {match.matching_details.reasons?.map((reason, idx) => (
-                      <li key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                        <span style={{ color: 'var(--success)', fontWeight: 'bold' }}>✓</span>
-                        <span>{reason}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  {match.matching_details.matched_keywords && match.matching_details.matched_keywords.length > 0 && (
-                    <div style={{ marginTop: '14px' }}>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>Matched Keywords:</span>
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                        {match.matching_details.matched_keywords.map((kw, i) => (
-                          <span key={i} style={{ backgroundColor: 'rgba(6, 182, 212, 0.1)', border: '1px solid var(--accent)', color: 'var(--accent)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem' }}>
-                            {kw}
-                          </span>
-                        ))}
-                      </div>
+              <AnimatePresence>
+                {isExpanded && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                    className="overflow-hidden mt-4 space-y-6"
+                  >
+                    {/* High-Fidelity Job description block */}
+                    <div className="bg-slate-950/80 border border-slate-800/80 rounded-xl p-5 max-h-[350px] overflow-y-auto">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-white mb-3 flex items-center gap-1.5">
+                        📋 Position Description & Profile
+                      </h4>
+                      <div 
+                        className="job-html-description text-slate-300 text-sm font-medium leading-relaxed"
+                        dangerouslySetInnerHTML={{ __html: job.description }}
+                      />
                     </div>
-                  )}
-                </div>
-              )}
+
+                    {/* Matching Engine Details */}
+                    <div className="bg-accent-indigoGlow border border-accent-primary/20 rounded-xl p-5">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-accent-primary mb-3 flex items-center gap-1.5">
+                        <Sparkles className="h-3.5 w-3.5" /> Vector Engine Match Reasoning
+                      </h4>
+                      
+                      <ul className="space-y-2 text-slate-300 text-xs font-medium">
+                        {match.matching_details.reasons?.map((reason, idx) => (
+                          <li key={idx} className="flex items-start gap-2">
+                            <span className="text-success font-extrabold shrink-0">✓</span>
+                            <span>{reason}</span>
+                          </li>
+                        ))}
+                      </ul>
+
+                      {match.matching_details.matched_keywords && match.matching_details.matched_keywords.length > 0 && (
+                        <div className="mt-4 pt-4 border-t border-slate-800/60">
+                          <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                            Matched Tokens:
+                          </span>
+                          <div className="flex gap-2 flex-wrap">
+                            {match.matching_details.matched_keywords.map((kw, i) => (
+                              <span 
+                                key={i} 
+                                className="bg-accent-primary/10 border border-accent-primary/20 text-accent-primary px-2.5 py-1 rounded-md text-[10px] font-bold"
+                              >
+                                {kw}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
-            {/* Action buttons footer */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', borderTop: '1px solid var(--border-glass)', paddingTop: '16px', marginTop: '4px' }}>
-              <div style={{ display: 'flex', gap: '8px' }}>
+            {/* Action buttons drawer */}
+            <div className="flex justify-between items-center flex-wrap gap-4 border-t border-slate-800/80 pt-4 mt-4">
+              
+              {/* Left actions block */}
+              <div className="flex gap-2.5 flex-wrap items-center">
                 {match.status !== 'saved' && match.status !== 'applied' && (
-                  <button 
+                  <motion.button 
+                    whileTap={{ scale: 0.96 }}
                     onClick={() => onStatusUpdate(job.id, 'saved')}
-                    className="btn btn-secondary" 
-                    style={{ padding: '8px 16px', fontSize: '0.8rem' }}
+                    className="px-4 py-2 bg-slate-900 border border-slate-800 hover:bg-slate-850 hover:text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 flex items-center gap-2"
                   >
-                    <Bookmark size={14} /> Save Job
-                  </button>
+                    <Bookmark className="h-4 w-4 text-slate-400" />
+                    <span>Save Job</span>
+                  </motion.button>
                 )}
                 {match.status === 'saved' && (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--success)', fontSize: '0.85rem', padding: '0 8px' }}>
-                    <Check size={16} /> Saved
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-success bg-success/5 border border-success/15 px-3 py-2 rounded-xl">
+                    <Check className="h-4 w-4" />
+                    <span>Saved to Feed</span>
                   </span>
                 )}
-                <button 
+                <motion.button 
+                  whileTap={{ scale: 0.96 }}
                   onClick={() => onStatusUpdate(job.id, 'dismissed')}
-                  className="btn btn-secondary" 
-                  style={{ padding: '8px 16px', fontSize: '0.8rem', color: 'var(--text-muted)' }}
+                  className="px-4 py-2 bg-slate-900 border border-slate-800 hover:bg-slate-850 hover:text-danger rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 flex items-center gap-2"
                 >
-                  <Trash2 size={14} /> Dismiss
-                </button>
+                  <Trash2 className="h-4 w-4 text-slate-500" />
+                  <span>Dismiss</span>
+                </motion.button>
+
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => handleAddToCSV(job.id)}
+                  disabled={csvLoadingId === job.id}
+                  className="px-4 py-2 bg-slate-900 border border-accent-primary/20 hover:border-accent-primary/40 text-accent-primary hover:bg-accent-primary/5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 flex items-center gap-2"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  <span>{csvLoadingId === job.id ? "Syncing..." : "Add to CSV Tracker"}</span>
+                </motion.button>
               </div>
 
-              <a 
+              {/* Apply now link */}
+              <motion.a 
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 href={job.url} 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="btn btn-primary" 
-                style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+                className="px-5 py-2.5 bg-accent-primary text-white shadow-glow-primary hover:bg-accent-primary/95 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-300 flex items-center gap-2"
               >
-                Apply Now <ExternalLink size={14} />
-              </a>
+                <span>Apply Now</span>
+                <ExternalLink className="h-4 w-4" />
+              </motion.a>
             </div>
 
-          </div>
+          </motion.div>
         )
       })}
-    </div>
+    </motion.div>
   )
 }

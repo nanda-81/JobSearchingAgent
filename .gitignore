@@ -48,3 +48,18 @@ jwt_secret_key*
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# IDE and editor settings
+.vscode/
+.idea/
+
+# Private documents (not for public repo)
+PJSAP_Complete_Project_Document.docx
+
+# Runtime-generated logs and data files
+sent_emails.log
+*.log
+backend/jobs_tracker.csv
+
+# Verification databases (transient test artifacts)
+pjsap_verify.db

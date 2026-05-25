@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Search, Sparkles, Bookmark, Briefcase, RefreshCw } from 'lucide-react'
+import { Search, Sparkles, Bookmark, Briefcase, RefreshCw, Download } from 'lucide-react'
+import { motion } from 'framer-motion'
 import JobList, { Match } from './JobList'
 
 interface DashboardProps {
@@ -18,10 +19,36 @@ export default function Dashboard({ token, API_BASE }: DashboardProps) {
   const [totalMatches, setTotalMatches] = useState(0)
   const [avgScore, setAvgScore] = useState(0)
   const [totalSaved, setTotalSaved] = useState(0)
+  const [downloading, setDownloading] = useState(false)
 
   useEffect(() => {
     fetchMatches()
   }, [activeSubTab])
+
+  const downloadSavedCSV = async () => {
+    setDownloading(true)
+    try {
+      const res = await fetch(`${API_BASE}/matches/export-csv`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const blob = await res.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = 'pjsap_job_tracker.csv'
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+      } else {
+        alert("⚠️ No saved job matches found to export yet.")
+      }
+    } catch {
+      alert("⚠️ Error downloading spreadsheet.")
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   const fetchMatches = async () => {
     setLoading(true)
@@ -32,7 +59,7 @@ export default function Dashboard({ token, API_BASE }: DashboardProps) {
       if (res.ok) {
         const data: Match[] = await res.json()
         
-        // Compute overall stats regardless of subtab
+        // Compute overall stats
         setTotalMatches(data.length)
         setTotalSaved(data.filter(m => m.status === 'saved').length)
         if (data.length > 0) {
@@ -44,7 +71,6 @@ export default function Dashboard({ token, API_BASE }: DashboardProps) {
 
         // Filter based on currently active subtab
         if (activeSubTab === 'pending') {
-          // Display jobs that are pending, viewed or saved (but not dismissed or applied)
           setMatches(data.filter(m => m.status !== 'dismissed' && m.status !== 'applied'))
         } else {
           setMatches(data.filter(m => m.status === 'saved'))
@@ -66,17 +92,14 @@ export default function Dashboard({ token, API_BASE }: DashboardProps) {
 
     setLoading(true)
     try {
-      // Query crawled job index directly
       const res = await fetch(`${API_BASE}/jobs?q=${searchQuery}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (res.ok) {
         const data = await res.json()
         
-        // Wrap searched raw jobs in transient Match models so they render in JobList
         const transientMatches: Match[] = data.map((job: any) => ({
           job,
-          // Since it's a direct keyword search query, we calculate a mock semantic match score
           match_score: 0.85,
           matching_details: {
             reasons: ["Matched via full-text keyword search index query."],
@@ -104,7 +127,6 @@ export default function Dashboard({ token, API_BASE }: DashboardProps) {
         body: JSON.stringify({ status: newStatus })
       })
       if (res.ok) {
-        // Refresh feed data
         fetchMatches()
       }
     } catch {
@@ -153,103 +175,175 @@ export default function Dashboard({ token, API_BASE }: DashboardProps) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+    <div className="space-y-10">
       
-      {/* 3 STATS CARDS ROW */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
+      {/* Dashboard Top Header Section */}
+      <div>
+        <h1 className="text-3xl font-extrabold font-display tracking-tight text-white mb-2">
+          Agent <span className="text-accent-primary">Job Matches Console</span>
+        </h1>
+        <p className="text-slate-400 text-sm font-medium">
+          Real-time semantic vector matching pipelines and automated target crawler statistics.
+        </p>
+      </div>
+
+      {/* 3 Premium Metric Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
-        {/* Metric 1 */}
-        <div className="glass-card" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <div className="brand-gradient" style={{ width: '48px', height: '48px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 10px var(--primary-glow)' }}>
-            <Briefcase size={20} color="white" />
+        {/* Card 1: Matches Discovered */}
+        <motion.div 
+          whileHover={{ translateY: -3 }}
+          className="glass-panel p-6 rounded-2xl flex items-center gap-5 border-l-4 border-l-accent-primary border-accent-glow"
+        >
+          <div className="p-3.5 bg-accent-primary/10 rounded-xl text-accent-primary shadow-glow-primary">
+            <Briefcase className="h-6 w-6" />
           </div>
           <div>
-            <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Discovered Matches</span>
-            <span style={{ fontSize: '1.8rem', fontWeight: 700, fontFamily: 'var(--font-display)' }}>{totalMatches}</span>
+            <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
+              Vector Matches
+            </span>
+            <span className="text-3xl font-extrabold font-display text-white">
+              {totalMatches}
+            </span>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Metric 2 */}
-        <div className="glass-card" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--accent)', backgroundColor: 'rgba(6, 182, 212, 0.1)' }}>
-            <Sparkles size={20} color="var(--accent)" />
+        {/* Card 2: Match Relevancy */}
+        <motion.div 
+          whileHover={{ translateY: -3 }}
+          className="glass-panel p-6 rounded-2xl flex items-center gap-5 border-l-4 border-l-accent-primary border-accent-glow"
+        >
+          <div className="p-3.5 bg-accent-primary/10 rounded-xl text-accent-primary shadow-glow-primary">
+            <Sparkles className="h-6 w-6" />
           </div>
           <div>
-            <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Avg Match Relevancy</span>
-            <span style={{ fontSize: '1.8rem', fontWeight: 700, fontFamily: 'var(--font-display)', color: 'var(--accent)' }}>{avgScore}%</span>
+            <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
+              Avg Relevancy
+            </span>
+            <span className="text-3xl font-extrabold font-display text-accent-primary">
+              {avgScore}%
+            </span>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Metric 3 */}
-        <div className="glass-card" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--success)', backgroundColor: 'rgba(16, 185, 129, 0.1)' }}>
-            <Bookmark size={20} color="var(--success)" />
+        {/* Card 3: Saved Listings */}
+        <motion.div 
+          whileHover={{ translateY: -3 }}
+          className="glass-panel p-6 rounded-2xl flex items-center gap-5 border-l-4 border-l-success border-accent-glow"
+        >
+          <div className="p-3.5 bg-success/10 rounded-xl text-success shadow-glow-success">
+            <Bookmark className="h-6 w-6" />
           </div>
           <div>
-            <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Saved Listings</span>
-            <span style={{ fontSize: '1.8rem', fontWeight: 700, fontFamily: 'var(--font-display)', color: 'var(--success)' }}>{totalSaved}</span>
+            <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
+              Saved Tracker
+            </span>
+            <span className="text-3xl font-extrabold font-display text-success">
+              {totalSaved}
+            </span>
           </div>
-        </div>
-
+        </motion.div>
       </div>
 
       {/* FILTER & CRAWL ACTIONS HEADER */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+      <div className="flex justify-between items-center flex-wrap gap-4 border-t border-slate-800/80 pt-8">
         
-        {/* Feed Filtering Tabs */}
-        <div style={{ display: 'flex', gap: '8px', backgroundColor: 'var(--bg-secondary)', padding: '6px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-glass)' }}>
+        {/* Custom Segmented Switch tabs */}
+        <div className="flex bg-slate-900 border border-slate-850 p-1.5 rounded-xl">
           <button 
             onClick={() => setActiveSubTab('pending')}
-            className={`btn ${activeSubTab === 'pending' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ padding: '6px 16px', fontSize: '0.8rem', border: 'none' }}
+            className={`px-5 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-300 ${
+              activeSubTab === 'pending'
+                ? 'bg-accent-primary text-white shadow-glow-primary'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
           >
             Best Matches
           </button>
           <button 
             onClick={() => setActiveSubTab('saved')}
-            className={`btn ${activeSubTab === 'saved' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ padding: '6px 16px', fontSize: '0.8rem', border: 'none' }}
+            className={`px-5 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-300 ${
+              activeSubTab === 'saved'
+                ? 'bg-accent-primary text-white shadow-glow-primary'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
           >
             Saved Feed
           </button>
         </div>
 
-        {/* Manual Crawler Action */}
-        <button onClick={triggerManualCrawlerDemo} className="btn btn-secondary" disabled={crawling} style={{ fontSize: '0.85rem' }}>
-          {crawling ? (
-            <><RefreshCw size={14} className="animate-spin" /> Fetching Jobs...</>
-          ) : (
-            <><RefreshCw size={14} /> Refresh Feeds & Run Matcher</>
+        {/* Actions Button panel */}
+        <div className="flex gap-3 items-center">
+          {activeSubTab === 'saved' && (
+            <motion.button 
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={downloadSavedCSV} 
+              className="px-5 py-2.5 bg-slate-900 hover:bg-success/5 text-success hover:border-success/35 border border-slate-800 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-300 flex items-center gap-2"
+              disabled={downloading}
+            >
+              <Download className="h-4 w-4" />
+              <span>{downloading ? 'Exporting...' : 'Export Spreadsheet'}</span>
+            </motion.button>
           )}
-        </button>
+
+          {/* Crawler Dispatch Button */}
+          <motion.button 
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={triggerManualCrawlerDemo} 
+            className="px-5 py-2.5 bg-accent-primary hover:bg-accent-primary/95 text-white shadow-glow-primary text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-300 flex items-center gap-2"
+            disabled={crawling}
+          >
+            {crawling ? (
+              <>
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                <span>Running Pipeline...</span>
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4" />
+                <span>Dispatch Match Worker</span>
+              </>
+            )}
+          </motion.button>
+        </div>
       </div>
 
-      {/* ACTIVE SEARCH BAR */}
-      <form onSubmit={handleSearch} style={{ display: 'flex', gap: '12px' }}>
-        <div style={{ position: 'relative', flex: 1 }}>
-          <Search size={16} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+      {/* Commands / Search Bar */}
+      <form onSubmit={handleSearch} className="flex gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
           <input 
             type="text" 
             value={searchQuery} 
             onChange={(e) => setSearchQuery(e.target.value)} 
-            placeholder="Fuzzy full-text search Elasticsearch index (e.g. Python DevOps Kubernetes)..." 
-            style={{ paddingLeft: '44px', paddingRight: '16px' }}
+            placeholder="Type job queries (e.g. Python DevOps Kubernetes) to scan vectors..." 
+            className="w-full pl-12 pr-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-accent-primary focus:ring-2 focus:ring-accent-primary/20 transition-all duration-300 text-sm font-medium"
           />
         </div>
-        <button type="submit" className="btn btn-primary" style={{ padding: '0 24px' }}>
+        <motion.button 
+          whileTap={{ scale: 0.98 }}
+          type="submit" 
+          className="px-6 bg-slate-900 border border-slate-800 hover:bg-slate-850 hover:text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300"
+        >
           Search
-        </button>
+        </motion.button>
       </form>
 
-      {/* MATCHED JOB LIST */}
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-secondary)' }}>
-          <RefreshCw size={24} className="animate-spin" style={{ marginBottom: '12px', color: 'var(--primary)' }} />
-          <p style={{ fontSize: '0.9rem' }}>Matching vectors aligning. Analyzing postings...</p>
-        </div>
-      ) : (
-        <JobList matches={matches} onStatusUpdate={handleStatusUpdate} />
-      )}
+      {/* Matched Feed listings display */}
+      <div className="pt-4">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+            <RefreshCw className="h-8 w-8 animate-spin text-accent-primary mb-4" />
+            <p className="text-sm font-semibold tracking-wider uppercase text-slate-500">
+              Aligning semantic clusters...
+            </p>
+          </div>
+        ) : (
+          <JobList matches={matches} onStatusUpdate={handleStatusUpdate} token={token} API_BASE={API_BASE} />
+        )}
+      </div>
 
     </div>
   )

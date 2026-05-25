@@ -1,17 +1,56 @@
 import React, { useState, useEffect } from 'react'
-import { Save, AlertCircle, Plus, X, DollarSign } from 'lucide-react'
+import { Save, AlertCircle, Plus, X, DollarSign, Target, Award, ShieldAlert, FileText, CheckCircle2 } from 'lucide-react'
+import { motion } from 'framer-motion'
 
 interface ProfileFormProps {
   token: string
   API_BASE: string
 }
 
+const standardJobTitles = [
+  "Software Engineer",
+  "React Developer",
+  "FastAPI Developer",
+  "Python Developer",
+  "DevOps Engineer",
+  "Full-Stack Engineer",
+  "Machine Learning Engineer",
+  "Backend Architect",
+  "Frontend Engineer",
+  "Data Scientist",
+  "Product Manager",
+  "Tech Lead",
+  "Cloud Solutions Architect",
+  "Security Engineer",
+  "Site Reliability Engineer"
+]
+
+const standardLocations = [
+  "Remote",
+  "Remote, US",
+  "San Francisco, CA",
+  "New York, NY",
+  "Austin, TX",
+  "Seattle, WA",
+  "London, UK",
+  "Toronto, ON",
+  "Berlin, Germany",
+  "Paris, France",
+  "Singapore",
+  "Tokyo, Japan",
+  "Boston, MA",
+  "Chicago, IL",
+  "Denver, CO"
+]
+
 export default function ProfileForm({ token, API_BASE }: ProfileFormProps) {
   const [targetTitles, setTargetTitles] = useState<string[]>([])
   const [titleInput, setTitleInput] = useState('')
+  const [showTitleDropdown, setShowTitleDropdown] = useState(false)
 
   const [targetLocations, setTargetLocations] = useState<string[]>([])
   const [locInput, setLocInput] = useState('')
+  const [showLocDropdown, setShowLocDropdown] = useState(false)
 
   const [salaryMin, setSalaryMin] = useState<number | ''>('')
   const [experienceLevel, setExperienceLevel] = useState('mid')
@@ -93,7 +132,6 @@ export default function ProfileForm({ token, API_BASE }: ProfileFormProps) {
     }
   }
 
-  // Tags helper functions
   const addTag = (input: string, setInput: React.Dispatch<React.SetStateAction<string>>, tags: string[], setTags: React.Dispatch<React.SetStateAction<string[]>>) => {
     const cleaned = input.trim()
     if (cleaned && !tags.includes(cleaned)) {
@@ -114,225 +152,366 @@ export default function ProfileForm({ token, API_BASE }: ProfileFormProps) {
     }
   }
 
+  // Filter lists on-the-fly
+  const filteredTitles = standardJobTitles.filter(t => 
+    t.toLowerCase().includes(titleInput.toLowerCase()) && 
+    !targetTitles.includes(t)
+  )
+
+  const filteredLocs = standardLocations.filter(l => 
+    l.toLowerCase().includes(locInput.toLowerCase()) && 
+    !targetLocations.includes(l)
+  )
+
   return (
-    <div className="glass-card animate-fade-in" style={{ padding: '40px', maxWidth: '800px', margin: '0 auto' }}>
-      <div style={{ marginBottom: '32px', borderBottom: '1px solid var(--border-glass)', paddingBottom: '16px' }}>
-        <h2 style={{ fontSize: '1.5rem', color: 'var(--text-primary)', marginBottom: '8px' }}>Target Preferences</h2>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Define matching criteria. The engine will rank job crawled feeds using these parameters.</p>
+    <div className="space-y-10 max-w-[850px] mx-auto">
+      {/* Title Header */}
+      <div>
+        <h1 className="text-3xl font-extrabold font-display tracking-tight text-white mb-2">
+          Target <span className="text-accent-primary">Matching Preferences</span>
+        </h1>
+        <p className="text-slate-400 text-sm font-medium">
+          Define semantic weights, titles, locations, and filters. The AI matching engine will rank feeds using these weights.
+        </p>
       </div>
 
-      <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-
-        {/* ROW 1: Titles & Locations */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', flexWrap: 'wrap' }}>
-          {/* Target Titles Tag Editor */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>Target Job Titles</label>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-              <input
-                type="text"
-                value={titleInput}
-                onChange={(e) => setTitleInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag(titleInput, setTitleInput, targetTitles, setTargetTitles))}
-                placeholder="Software Engineer, Tech Lead..."
-              />
-              <button
-                type="button"
-                onClick={() => addTag(titleInput, setTitleInput, targetTitles, setTargetTitles)}
-                className="btn btn-secondary"
-                style={{ padding: '0 12px' }}
-              >
-                <Plus size={16} />
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-              {targetTitles.map((t, idx) => (
-                <span key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-glass)', padding: '4px 10px', borderRadius: '16px', fontSize: '0.8rem' }}>
-                  {t} <X size={12} style={{ cursor: 'pointer', color: 'var(--error)' }} onClick={() => removeTag(t, targetTitles, setTargetTitles)} />
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Target Locations Tag Editor */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>Target Locations</label>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-              <input
-                type="text"
-                value={locInput}
-                onChange={(e) => setLocInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag(locInput, setLocInput, targetLocations, setTargetLocations))}
-                placeholder="Remote, New York, London..."
-              />
-              <button
-                type="button"
-                onClick={() => addTag(locInput, setLocInput, targetLocations, setTargetLocations)}
-                className="btn btn-secondary"
-                style={{ padding: '0 12px' }}
-              >
-                <Plus size={16} />
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-              {targetLocations.map((l, idx) => (
-                <span key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-glass)', padding: '4px 10px', borderRadius: '16px', fontSize: '0.8rem' }}>
-                  {l} <X size={12} style={{ cursor: 'pointer', color: 'var(--error)' }} onClick={() => removeTag(l, targetLocations, setTargetLocations)} />
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* ROW 2: Salary & Experience */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>Minimum Desired Salary ($ / Year)</label>
-            <div style={{ position: 'relative' }}>
-              <DollarSign size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-              <input
-                type="number"
-                value={salaryMin}
-                onChange={(e) => setSalaryMin(e.target.value !== '' ? Number(e.target.value) : '')}
-                placeholder="120000"
-                style={{ paddingLeft: '32px' }}
-                min={0}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>Target Experience Level</label>
-            <select value={experienceLevel} onChange={(e) => setExperienceLevel(e.target.value)}>
-              <option value="junior">Junior (Entry-level, Intern)</option>
-              <option value="mid">Mid-Level (2-5 years)</option>
-              <option value="senior">Senior (5+ years, Architect)</option>
-              <option value="lead">Lead (Principal, Staff, Manager)</option>
-            </select>
-          </div>
-        </div>
-
-        {/* ROW 3: Employment Types */}
-        <div>
-          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '12px' }}>Employment Types</label>
-          <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
-            {['Full-time', 'Part-time', 'Contract', 'Internship'].map((type) => {
-              const checked = jobTypes.includes(type)
-              return (
-                <label key={type} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem' }}>
+      <motion.div 
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="glass-panel p-8 md:p-10 rounded-2xl border border-slate-800/80 shadow-2xl relative"
+      >
+        <form onSubmit={handleSave} className="space-y-8">
+          
+          {/* GRID ROW 1: Titles & Locations */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            
+            {/* Target Job Titles Tag Editor with Auto-Suggestion Dropbox */}
+            <div className="space-y-3">
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Target className="h-4 w-4 text-accent-primary" /> Target Job Titles
+              </label>
+              
+              <div className="flex gap-2 relative">
+                <div className="relative flex-1">
                   <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => toggleJobType(type)}
-                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                    type="text"
+                    value={titleInput}
+                    onChange={(e) => {
+                      setTitleInput(e.target.value)
+                      setShowTitleDropdown(true)
+                    }}
+                    onFocus={() => setShowTitleDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowTitleDropdown(false), 200)}
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag(titleInput, setTitleInput, targetTitles, setTargetTitles))}
+                    placeholder="Software Engineer, Tech Lead..."
+                    className="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-accent-primary transition-all text-sm font-medium"
                   />
-                  <span>{type}</span>
-                </label>
-              )
-            })}
-          </div>
-        </div>
+                  {showTitleDropdown && filteredTitles.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1.5 bg-slate-900 border border-slate-800 rounded-xl max-h-48 overflow-y-auto shadow-2xl p-1 scrollbar">
+                      {filteredTitles.map((title) => (
+                        <button
+                          key={title}
+                          type="button"
+                          onClick={() => {
+                            if (!targetTitles.includes(title)) {
+                              setTargetTitles([...targetTitles, title])
+                            }
+                            setTitleInput('')
+                            setShowTitleDropdown(false)
+                          }}
+                          className="w-full text-left px-3.5 py-2.5 text-xs font-bold text-slate-300 hover:text-white hover:bg-slate-850 rounded-lg transition-colors duration-200 cursor-pointer"
+                        >
+                          {title}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => addTag(titleInput, setTitleInput, targetTitles, setTargetTitles)}
+                  className="p-2.5 bg-slate-900 border border-slate-855 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl transition-all self-start h-[42px] cursor-pointer"
+                >
+                  <Plus className="h-5 w-5" />
+                </button>
+              </div>
 
-        {/* ROW 4: Keywords & Exclusions */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-          {/* Positive Keywords */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>Positive Keywords (Boost Score)</label>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-              <input
-                type="text"
-                value={kwInput}
-                onChange={(e) => setKwInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag(kwInput, setKwInput, keywords, setKeywords))}
-                placeholder="Python, React, AWS..."
-              />
-              <button
-                type="button"
-                onClick={() => addTag(kwInput, setKwInput, keywords, setKeywords)}
-                className="btn btn-secondary"
-                style={{ padding: '0 12px' }}
+              <div className="flex gap-2 flex-wrap min-h-8">
+                {targetTitles.map((t, idx) => (
+                  <span 
+                    key={idx} 
+                    className="inline-flex items-center gap-1.5 bg-slate-850/80 border border-slate-800 text-slate-200 px-3 py-1 rounded-full text-xs font-semibold"
+                  >
+                    <span>{t}</span>
+                    <X 
+                      className="h-3.5 w-3.5 cursor-pointer text-slate-400 hover:text-danger" 
+                      onClick={() => removeTag(t, targetTitles, setTargetTitles)} 
+                    />
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Target Locations Tag Editor with Auto-Suggestion Dropbox */}
+            <div className="space-y-3">
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Target className="h-4 w-4 text-accent-primary" /> Target Locations
+              </label>
+              
+              <div className="flex gap-2 relative">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    value={locInput}
+                    onChange={(e) => {
+                      setLocInput(e.target.value)
+                      setShowLocDropdown(true)
+                    }}
+                    onFocus={() => setShowLocDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowLocDropdown(false), 200)}
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag(locInput, setLocInput, targetLocations, setTargetLocations))}
+                    placeholder="Remote, New York, London..."
+                    className="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-accent-primary transition-all text-sm font-medium"
+                  />
+                  {showLocDropdown && filteredLocs.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1.5 bg-slate-900 border border-slate-800 rounded-xl max-h-48 overflow-y-auto shadow-2xl p-1 scrollbar">
+                      {filteredLocs.map((loc) => (
+                        <button
+                          key={loc}
+                          type="button"
+                          onClick={() => {
+                            if (!targetLocations.includes(loc)) {
+                              setTargetLocations([...targetLocations, loc])
+                            }
+                            setLocInput('')
+                            setShowLocDropdown(false)
+                          }}
+                          className="w-full text-left px-3.5 py-2.5 text-xs font-bold text-slate-300 hover:text-white hover:bg-slate-850 rounded-lg transition-colors duration-200 cursor-pointer"
+                        >
+                          {loc}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => addTag(locInput, setLocInput, targetLocations, setTargetLocations)}
+                  className="p-2.5 bg-slate-900 border border-slate-855 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl transition-all self-start h-[42px] cursor-pointer"
+                >
+                  <Plus className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="flex gap-2 flex-wrap min-h-8">
+                {targetLocations.map((l, idx) => (
+                  <span 
+                    key={idx} 
+                    className="inline-flex items-center gap-1.5 bg-slate-850/80 border border-slate-800 text-slate-200 px-3 py-1 rounded-full text-xs font-semibold"
+                  >
+                    <span>{l}</span>
+                    <X 
+                      className="h-3.5 w-3.5 cursor-pointer text-slate-400 hover:text-danger" 
+                      onClick={() => removeTag(l, targetLocations, setTargetLocations)} 
+                    />
+                  </span>
+                ))}
+              </div>
+            </div>
+
+          </div>
+
+          {/* GRID ROW 2: Salary & Experience */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-slate-800/80 pt-6">
+            
+            {/* Minimum Desired Salary */}
+            <div className="space-y-3">
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
+                Minimum Annual Salary ($)
+              </label>
+              <div className="relative">
+                <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-500" />
+                <input
+                  type="number"
+                  value={salaryMin}
+                  onChange={(e) => setSalaryMin(e.target.value !== '' ? Number(e.target.value) : '')}
+                  placeholder="120000"
+                  className="w-full pl-11 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-accent-primary transition-all text-sm font-medium"
+                  min={0}
+                />
+              </div>
+            </div>
+
+            {/* Experience Level Selector */}
+            <div className="space-y-3">
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Award className="h-4 w-4 text-accent-primary" /> Target Experience Level
+              </label>
+              <select 
+                value={experienceLevel} 
+                onChange={(e) => setExperienceLevel(e.target.value)}
+                className="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-accent-primary transition-all text-sm font-medium cursor-pointer"
               >
-                <Plus size={16} />
-              </button>
+                <option value="junior">Junior (Entry-level, Intern)</option>
+                <option value="mid">Mid-Level (2-5 years)</option>
+                <option value="senior">Senior (5+ years, Architect)</option>
+                <option value="lead">Lead (Principal, Staff, Manager)</option>
+              </select>
             </div>
 
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-              {keywords.map((k, idx) => (
-                <span key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: 'rgba(52, 211, 153, 0.1)', border: '1px solid var(--success)', color: 'var(--success)', padding: '4px 10px', borderRadius: '16px', fontSize: '0.8rem' }}>
-                  {k} <X size={12} style={{ cursor: 'pointer' }} onClick={() => removeTag(k, keywords, setKeywords)} />
-                </span>
-              ))}
+          </div>
+
+          {/* GRID ROW 3: Employment Types Checkboxes */}
+          <div className="border-t border-slate-800/80 pt-6 space-y-3">
+            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
+              Employment Schedule Target
+            </label>
+            <div className="flex gap-6 flex-wrap">
+              {['Full-time', 'Part-time', 'Contract', 'Internship'].map((type) => {
+                const checked = jobTypes.includes(type)
+                return (
+                  <label key={type} className="inline-flex items-center gap-2.5 cursor-pointer text-sm font-semibold text-slate-300 select-none">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleJobType(type)}
+                      className="w-4.5 h-4.5 rounded bg-slate-900 border border-slate-800 text-accent-primary focus:ring-accent-primary focus:ring-opacity-20 cursor-pointer"
+                    />
+                    <span>{type}</span>
+                  </label>
+                )
+              })}
             </div>
           </div>
 
-          {/* Excluded Keywords */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>Excluded Keywords (Strict Block 0.0 Score)</label>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-              <input
-                type="text"
-                value={exInput}
-                onChange={(e) => setExInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag(exInput, setExInput, excludedKeywords, setExcludedKeywords))}
-                placeholder="PHP, WordPress, Cobalt..."
-              />
-              <button
-                type="button"
-                onClick={() => addTag(exInput, setExInput, excludedKeywords, setExcludedKeywords)}
-                className="btn btn-secondary"
-                style={{ padding: '0 12px' }}
+          {/* GRID ROW 4: Keywords & Exclusions */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-slate-800/80 pt-6">
+            
+            {/* Positive Keywords */}
+            <div className="space-y-3">
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 text-success">
+                <CheckCircle2 className="h-4 w-4" /> Score Boost Keywords
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={kwInput}
+                  onChange={(e) => setKwInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag(kwInput, setKwInput, keywords, setKeywords))}
+                  placeholder="Python, React, AWS..."
+                  className="flex-1 px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-success/60 transition-all text-sm font-medium"
+                />
+                <button
+                  type="button"
+                  onClick={() => addTag(kwInput, setKwInput, keywords, setKeywords)}
+                  className="p-2.5 bg-slate-900 border border-slate-855 hover:bg-success/15 hover:text-success text-slate-300 rounded-xl transition-all cursor-pointer"
+                >
+                  <Plus className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="flex gap-2 flex-wrap min-h-8">
+                {keywords.map((k, idx) => (
+                  <span 
+                    key={idx} 
+                    className="inline-flex items-center gap-1.5 bg-success/5 border border-success/20 text-success px-3 py-1 rounded-full text-xs font-semibold"
+                  >
+                    <span>{k}</span>
+                    <X 
+                      className="h-3.5 w-3.5 cursor-pointer text-success/60 hover:text-success" 
+                      onClick={() => removeTag(k, keywords, setKeywords)} 
+                    />
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Excluded Keywords */}
+            <div className="space-y-3">
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 text-danger">
+                <ShieldAlert className="h-4 w-4" /> Strict Exclusion Keywords
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={exInput}
+                  onChange={(e) => setExInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag(exInput, setExInput, excludedKeywords, setExcludedKeywords))}
+                  placeholder="PHP, WordPress, Cobalt..."
+                  className="flex-1 px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-danger/60 transition-all text-sm font-medium"
+                />
+                <button
+                  type="button"
+                  onClick={() => addTag(exInput, setExInput, excludedKeywords, setExcludedKeywords)}
+                  className="p-2.5 bg-slate-900 border border-slate-855 hover:bg-danger/15 hover:text-danger text-slate-300 rounded-xl transition-all cursor-pointer"
+                >
+                  <Plus className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="flex gap-2 flex-wrap min-h-8">
+                {excludedKeywords.map((e_kw, idx) => (
+                  <span 
+                    key={idx} 
+                    className="inline-flex items-center gap-1.5 bg-danger/5 border border-danger/20 text-danger px-3 py-1 rounded-full text-xs font-semibold"
+                  >
+                    <span>{e_kw}</span>
+                    <X 
+                      className="h-3.5 w-3.5 cursor-pointer text-danger/60 hover:text-danger" 
+                      onClick={() => removeTag(e_kw, excludedKeywords, setExcludedKeywords)} 
+                    />
+                  </span>
+                ))}
+              </div>
+            </div>
+
+          </div>
+
+          {/* GRID ROW 5: Resume URL */}
+          <div className="border-t border-slate-800/80 pt-6 space-y-3">
+            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <FileText className="h-4 w-4 text-accent-primary" /> Resume / Portfolio URL Link
+            </label>
+            <input
+              type="url"
+              value={resumeUrl}
+              onChange={(e) => setResumeUrl(e.target.value)}
+              placeholder="https://portfolio.me/my-resume.pdf"
+              className="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-accent-primary transition-all text-sm font-medium"
+            />
+          </div>
+
+          {/* Form Actions Footer Panel */}
+          <div className="flex flex-col gap-4 border-t border-slate-800/80 pt-6">
+            {msg.text && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className={`flex items-center gap-3 p-4 rounded-xl text-sm font-semibold border ${
+                  msg.type === 'success'
+                    ? 'bg-success/5 border-success/20 text-success shadow-glow-success'
+                    : 'bg-danger/5 border-danger/20 text-danger shadow-glow-danger'
+                }`}
               >
-                <Plus size={16} />
-              </button>
-            </div>
+                <AlertCircle className="h-5 w-5 shrink-0" />
+                <span>{msg.text}</span>
+              </motion.div>
+            )}
 
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-              {excludedKeywords.map((e_kw, idx) => (
-                <span key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: 'rgba(248, 113, 113, 0.1)', border: '1px solid var(--error)', color: 'var(--error)', padding: '4px 10px', borderRadius: '16px', fontSize: '0.8rem' }}>
-                  {e_kw} <X size={12} style={{ cursor: 'pointer' }} onClick={() => removeTag(e_kw, excludedKeywords, setExcludedKeywords)} />
-                </span>
-              ))}
-            </div>
+            <motion.button 
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              type="submit" 
+              className="px-8 py-3 bg-accent-primary hover:bg-accent-primary/95 hover:shadow-glow-primary text-white font-semibold font-display tracking-wider rounded-xl transition-all duration-300 flex items-center justify-center gap-2 self-end text-xs uppercase disabled:opacity-50 cursor-pointer"
+              disabled={saving}
+            >
+              <Save className="h-4 w-4" />
+              <span>{saving ? 'Syncing...' : 'Save Preferences'}</span>
+            </motion.button>
           </div>
-        </div>
 
-        {/* Resume URL */}
-        <div>
-          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>Resume / Portfolio URL</label>
-          <input
-            type="url"
-            value={resumeUrl}
-            onChange={(e) => setResumeUrl(e.target.value)}
-            placeholder="https://portfolio.me/my-resume.pdf"
-          />
-        </div>
-
-        {/* Notifications and Submission */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', borderTop: '1px solid var(--border-glass)', paddingTop: '24px' }}>
-          {msg.text && (
-            <div style={{
-              backgroundColor: msg.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-              border: `1px solid ${msg.type === 'success' ? 'var(--success)' : 'var(--error)'}`,
-              padding: '12px 16px',
-              borderRadius: 'var(--radius-sm)',
-              color: msg.type === 'success' ? 'var(--success)' : 'var(--error)',
-              fontSize: '0.9rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
-              <AlertCircle size={16} /> {msg.text}
-            </div>
-          )}
-
-          <button type="submit" className="btn btn-primary" style={{ alignSelf: 'flex-end', padding: '12px 32px' }} disabled={saving}>
-            <Save size={16} /> {saving ? 'Saving...' : 'Save Preferences'}
-          </button>
-        </div>
-
-      </form>
+        </form>
+      </motion.div>
     </div>
   )
 }

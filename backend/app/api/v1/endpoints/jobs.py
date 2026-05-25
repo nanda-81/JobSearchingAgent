@@ -47,7 +47,7 @@ def trigger_crawl(
     except Exception:
         pass
         
-    if celery_is_active and not settings.DATABASE_URL.startswith("sqlite"):
+    if celery_is_active:
         # Celery background dispatch
         crawl_and_normalize_jobs.delay(query=query, limit_per_source=5)
         return {

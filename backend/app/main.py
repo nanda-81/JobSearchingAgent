@@ -26,18 +26,17 @@ app.add_middleware(
 
 @app.on_event("startup")
 def on_startup():
-    """Ensure database schema is dynamically created when running in SQLite/Developer mode."""
-    if settings.DATABASE_URL.startswith("sqlite"):
-        from app.db.session import Base, engine
-        # Import all models to ensure they are registered on the Base metadata
-        from app.models.user import User
-        from app.models.profile import UserProfile
-        from app.models.job import Job
-        from app.models.match import JobMatch
-        from app.models.social import SocialCredentials
-        from app.models.audit import AuditLog
-        
-        Base.metadata.create_all(bind=engine)
+    """Ensure database schema is dynamically created on startup."""
+    from app.db.session import Base, engine
+    # Import all models to ensure they are registered on the Base metadata
+    from app.models.user import User
+    from app.models.profile import UserProfile
+    from app.models.job import Job
+    from app.models.match import JobMatch
+    from app.models.social import SocialCredentials
+    from app.models.audit import AuditLog
+    
+    Base.metadata.create_all(bind=engine)
 
 # Register Endpoints
 app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])

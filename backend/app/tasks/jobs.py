@@ -1,6 +1,8 @@
 import hashlib
 import logging
-from typing import List, Dict, Any
+import re
+import requests
+from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 from celery.utils.log import get_task_logger
 from app.tasks.celery_app import celery_app
@@ -28,6 +30,50 @@ def generate_job_hash(title: str, company: str, location: str) -> str:
     
     hash_raw = f"{norm_title}|{norm_company}|{norm_location}"
     return hashlib.sha256(hash_raw.encode("utf-8")).hexdigest()
+
+COMPANY_CAREERS_MAP = {
+    "hubspot": "https://www.hubspot.com/careers",
+    "salesforce": "https://careers.salesforce.com",
+    "docusign": "https://www.docusign.com/careers",
+    "adobe": "https://www.adobe.com/careers.html",
+    "shopify": "https://www.shopify.com/careers",
+    "nvidia": "https://www.nvidia.com/en-us/about-nvidia/careers",
+    "intel": "https://www.intel.com/content/www/us/en/jobs/careers.html",
+    "google": "https://careers.google.com",
+    "microsoft": "https://careers.microsoft.com",
+    "apple": "https://www.apple.com/careers",
+    "meta": "https://www.metacareers.com",
+    "netflix": "https://jobs.netflix.com",
+    "amazon": "https://www.amazon.jobs"
+}
+
+def get_company_careers_url(company: str) -> Optional[str]:
+    comp_key = company.lower().strip()
+    if comp_key in COMPANY_CAREERS_MAP:
+        return COMPANY_CAREERS_MAP[comp_key]
+    
+    clean_name = re.sub(r'[^a-zA-Z0-9]', '', company).lower()
+    fallback_urls = [
+        f"https://www.{clean_name}.com/careers",
+        f"https://careers.{clean_name}.com",
+        f"https://www.{clean_name}.com/about/careers"
+    ]
+    
+    for url in fallback_urls:
+        try:
+            res = requests.head(url, timeout=3, allow_redirects=True, headers={"User-Agent": "Mozilla/5.0"})
+            if res.status_code < 400:
+                return url
+        except Exception:
+            continue
+            
+    return None
+
+def get_alternative_portal_url(title: str, company: str) -> str:
+    """Generate a high-relevancy active search query link on standard alternative portals (LinkedIn Jobs)."""
+    import urllib.parse
+    query_str = urllib.parse.quote(f"{title} {company}")
+    return f"https://www.linkedin.com/jobs/search/?keywords={query_str}"
 
 @celery_app.task(name="app.tasks.jobs.crawl_and_normalize_jobs")
 def crawl_and_normalize_jobs(query: str, limit_per_source: int = 5, db_session: Any = None) -> Dict[str, Any]:
@@ -64,7 +110,18 @@ def crawl_and_normalize_jobs(query: str, limit_per_source: int = 5, db_session: 
     
     try:
         # Fetch consented user profiles for real-time matching
+        from app.models.user import User
         active_profiles = db.query(UserProfile).filter(UserProfile.consent_given == True).all()
+        
+        # Map user_id to email and matched jobs for email notification
+        user_matches_map = {}
+        for profile in active_profiles:
+            user = db.query(User).filter(User.id == profile.user_id).first()
+            if user:
+                user_matches_map[profile.user_id] = {
+                    "email": user.email,
+                    "matches": []
+                }
         
         for crawler in crawlers:
             try:
@@ -76,6 +133,31 @@ def crawl_and_normalize_jobs(query: str, limit_per_source: int = 5, db_session: 
                 results_summary["jobs_crawled_count"] += len(crawled_jobs)
                 
                 for job_data in crawled_jobs:
+                    # Validate crawled job URL. Check if it's a simulated Glassdoor link or similar
+                    is_active = True
+                    url_check_needed = "glassdoor.com" in job_data.url.lower() or "indeed.com" in job_data.url.lower()
+                    
+                    if url_check_needed:
+                        try:
+                            # Perform a GET request to verify the link
+                            res = requests.get(job_data.url, timeout=4, headers={"User-Agent": "Mozilla/5.0"}, allow_redirects=True)
+                            if res.status_code == 404 or "page not found" in res.text.lower() or "404 error" in res.text.lower():
+                                is_active = False
+                        except Exception:
+                            is_active = False
+                    
+                    if not is_active:
+                        logger.info(f"[LinkFix] Dead job link detected for {job_data.company}: {job_data.url}. Searching for company career site...")
+                        career_url = get_company_careers_url(job_data.company)
+                        if career_url:
+                            logger.info(f"[LinkFix] Resolved official careers URL for {job_data.company}: {career_url}. Updating listing link.")
+                            job_data.url = career_url
+                        else:
+                            # Fallback 2: Construct live search link on alternative portal (e.g. LinkedIn Jobs)
+                            alt_url = get_alternative_portal_url(job_data.title, job_data.company)
+                            logger.info(f"[LinkFix] Career page missing. Resolved cross-portal search URL for {job_data.company}: {alt_url}. Updating listing link.")
+                            job_data.url = alt_url
+
                     # 1. Generate unique hash key for deduplication
                     hash_key = generate_job_hash(job_data.title, job_data.company, job_data.location)
                     
@@ -122,6 +204,13 @@ def crawl_and_normalize_jobs(query: str, limit_per_source: int = 5, db_session: 
                                 )
                                 db.add(match_record)
                                 results_summary["matches_generated"] += 1
+                                
+                                # Add to matched list for notification email
+                                if profile.user_id in user_matches_map:
+                                    user_matches_map[profile.user_id]["matches"].append({
+                                        "job": new_job,
+                                        "match_score": score
+                                    })
                 
                 # Commit crawler batch atomically
                 db.commit()
@@ -135,6 +224,20 @@ def crawl_and_normalize_jobs(query: str, limit_per_source: int = 5, db_session: 
                 logger.error(f"[Task] Failed crawling '{crawler.name}': {str(e)}")
                 results_summary["errors"][crawler.name] = str(e)
                 results_summary["status"] = "partial_failure"
+                
+        # Send career digest email alerts for compiled matches
+        try:
+            from app.services.notification.email import send_job_match_notification
+            for user_id, user_data in user_matches_map.items():
+                if user_data["matches"]:
+                    logger.info(f"[Task] Dispatching career digest email to user: {user_data['email']}")
+                    send_job_match_notification(
+                        email_to=user_data["email"],
+                        query=query,
+                        matches=user_data["matches"]
+                    )
+        except Exception as mail_err:
+            logger.error(f"[Task] Careers digest mail dispatch failed: {str(mail_err)}")
                 
     finally:
         if should_close:

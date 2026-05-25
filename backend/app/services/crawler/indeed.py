@@ -1,55 +1,63 @@
+import logging
 from typing import List
-from datetime import datetime, timezone, timedelta
-import random
+from datetime import datetime, timezone
 from app.services.crawler.base import BaseCrawler
 from app.schemas.job import JobCreate
+
+logger = logging.getLogger(__name__)
 
 class IndeedCrawler(BaseCrawler):
     def __init__(self):
         super().__init__(
-            name="Indeed",
-            rate_limit_delay=0.6,
+            name="Indeed (via Arbeitnow)",
+            rate_limit_delay=1.0,
             max_retries=3,
-            initial_delay=0.6,
-            backoff_factor=1.6,
+            initial_delay=1.0,
+            backoff_factor=2.0,
             consecutive_failures_limit=3
         )
 
     def fetch_jobs(self, query: str, limit: int = 10) -> List[JobCreate]:
-        """Fetch and normalize jobs from Indeed."""
-        normalized_jobs = []
-        companies = ["Microsoft", "Amazon", "Apple", "Uber", "Lyft", "Zoom", "Pinterest", "Slack"]
-        locations = ["Remote, US", "Seattle, WA", "New York, NY", "London, UK", "Chicago, IL"]
+        """Fetch and normalize jobs from the Arbeitnow API."""
+        url = f"https://arbeitnow.com/api/job-board-api?search={query}"
         
-        for i in range(limit):
-            company = random.choice(companies)
-            location = random.choice(locations)
-            is_remote = "Remote" in location
+        try:
+            response = self.request_with_retry(url)
+            data = response.json()
+            raw_jobs = data.get("data", [])
             
-            description = (
-                f"Join our engineering department as a {query} Specialist. At {company}, we solve challenging "
-                f"problems using high-performance technologies. Experience in {query}, distributed databases, "
-                f"and test-driven development (TDD) is preferred."
-            )
-            
-            salary_min = random.choice([90000, 110000, 140000, 175000])
-            salary_max = salary_min + random.choice([15000, 35000, 55000])
-            
-            job = JobCreate(
-                source="indeed",
-                original_id=f"ind-job-{random.randint(100000, 999999)}",
-                title=f"Staff {query} Developer",
-                company=company,
-                location=location,
-                is_remote=is_remote,
-                description=description,
-                salary_min=salary_min,
-                salary_max=salary_max,
-                salary_currency="USD",
-                url=f"https://www.indeed.com/viewjob?jk=ind-{random.randint(1000000, 9999999)}",
-                posted_at=datetime.now(timezone.utc) - timedelta(days=random.randint(0, 7)),
-                raw_data={"crawled_by": "PJSAP_Indeed_Crawler", "version": "1.0", "crawled_at": datetime.now(timezone.utc).isoformat()}
-            )
-            normalized_jobs.append(job)
-            
-        return normalized_jobs
+            normalized_jobs = []
+            for raw_job in raw_jobs[:limit]:
+                # Parse created_at timestamp (unix epoch integer)
+                created_at_val = raw_job.get("created_at")
+                try:
+                    posted_at = datetime.fromtimestamp(int(created_at_val), tz=timezone.utc)
+                except Exception:
+                    posted_at = datetime.now(timezone.utc)
+                
+                job = JobCreate(
+                    source="arbeitnow",
+                    original_id=raw_job.get("slug", f"an-{raw_job.get('title')}-{raw_job.get('company_name')}"[:50]),
+                    title=raw_job.get("title", f"Software Engineer ({query})"),
+                    company=raw_job.get("company_name", "Undisclosed Company"),
+                    location=raw_job.get("location", "Remote"),
+                    is_remote=raw_job.get("remote", True),
+                    description=raw_job.get("description", "No description provided."),
+                    salary_min=None,
+                    salary_max=None,
+                    salary_currency="USD",
+                    url=raw_job.get("url"),
+                    posted_at=posted_at,
+                    raw_data={
+                        "crawled_by": "PJSAP_Arbeitnow_Crawler",
+                        "tags": raw_job.get("tags", []),
+                        "job_types": raw_job.get("job_types", []),
+                        "crawled_at": datetime.now(timezone.utc).isoformat()
+                    }
+                )
+                normalized_jobs.append(job)
+                
+            return normalized_jobs
+        except Exception as e:
+            logger.error(f"Error fetching jobs from Arbeitnow API: {str(e)}")
+            raise e
