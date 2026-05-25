@@ -11,6 +11,7 @@ celery>=5.3.6
 cryptography>=42.0.0
 pyjwt>=2.8.0
 passlib[bcrypt]>=1.7.4
+bcrypt==3.2.0
 python-multipart>=0.0.9
 pytest>=8.0.0
 pytest-asyncio>=0.23.5

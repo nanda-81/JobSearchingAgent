@@ -1,3 +1,4 @@
+
 import pytest
 from datetime import datetime, timezone
 import requests
@@ -104,9 +105,41 @@ def test_circuit_breaker_tripping(monkeypatch):
         crawler.fetch_jobs("Python")
 
 # 3. Job crawler implementations test
-def test_linkedin_crawler_normalization():
-    random.seed(42)
+def test_linkedin_crawler_normalization(monkeypatch):
     crawler = LinkedInCrawler()
+    
+    mock_html = """
+    <div class="job-search-card" data-entity-urn="urn:li:jobPosting:101">
+        <h3 class="base-search-card__title">Python Engineer</h3>
+        <a class="hidden-nested-link">LinkedInCorp1</a>
+        <span class="job-search-card__location">Remote</span>
+        <time datetime="2026-05-25">2026-05-25</time>
+        <a href="https://www.linkedin.com/jobs/view/101">Link</a>
+    </li>
+    <div class="job-search-card" data-entity-urn="urn:li:jobPosting:102">
+        <h3 class="base-search-card__title">Python Dev</h3>
+        <a class="hidden-nested-link">LinkedInCorp2</a>
+        <span class="job-search-card__location">Remote</span>
+        <time datetime="2026-05-25">2026-05-25</time>
+        <a href="https://www.linkedin.com/jobs/view/102">Link</a>
+    </li>
+    <div class="job-search-card" data-entity-urn="urn:li:jobPosting:103">
+        <h3 class="base-search-card__title">Senior Python Architect</h3>
+        <a class="hidden-nested-link">LinkedInCorp3</a>
+        <span class="job-search-card__location">Remote</span>
+        <time datetime="2026-05-25">2026-05-25</time>
+        <a href="https://www.linkedin.com/jobs/view/103">Link</a>
+    </li>
+    """
+    
+    def mock_request(method, url, **kwargs):
+        response = requests.Response()
+        response.status_code = 200
+        response._content = mock_html.encode("utf-8")
+        return response
+        
+    monkeypatch.setattr(requests, "request", mock_request)
+    
     jobs = crawler.fetch_jobs("Python", limit=3)
     assert len(jobs) == 3
     for job in jobs:
@@ -115,9 +148,40 @@ def test_linkedin_crawler_normalization():
             assert job.salary_max >= job.salary_min
         assert job.posted_at is not None
 
-def test_github_crawler_normalization():
-    random.seed(42)
+def test_github_crawler_normalization(monkeypatch):
     crawler = GitHubCrawler()
+    
+    mock_xml = """
+    <rss xmlns:dc="http://purl.org/dc/elements/1.1/">
+        <channel>
+            <item>
+                <title>ReactCorp1: React Engineer</title>
+                <dc:creator>ReactCorp1</dc:creator>
+                <description>A React role</description>
+                <pubDate>Mon, 25 May 2026 12:00:00 +0000</pubDate>
+                <link>https://weworkremotely.com/jobs/101</link>
+                <guid>wwr-101</guid>
+            </item>
+            <item>
+                <title>ReactCorp2: React Architect</title>
+                <dc:creator>ReactCorp2</dc:creator>
+                <description>Another React role</description>
+                <pubDate>Mon, 25 May 2026 12:00:00 +0000</pubDate>
+                <link>https://weworkremotely.com/jobs/102</link>
+                <guid>wwr-102</guid>
+            </item>
+        </channel>
+    </rss>
+    """
+    
+    def mock_request(method, url, **kwargs):
+        response = requests.Response()
+        response.status_code = 200
+        response._content = mock_xml.encode("utf-8")
+        return response
+        
+    monkeypatch.setattr(requests, "request", mock_request)
+    
     jobs = crawler.fetch_jobs("React", limit=2)
     assert len(jobs) == 2
     for job in jobs:
