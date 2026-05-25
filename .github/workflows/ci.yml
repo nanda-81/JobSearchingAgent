@@ -49,8 +49,8 @@ jobs:
 
     - name: Run Pytest Coverage Suite
       env:
-        SECRET_KEY: "38bde564177d4c885c3b0eb6190f898394e3328e18efc8db67d93dcb0653c9f2"
-        ENCRYPTION_KEY: "Wk1oQU5hV1ZoWTNScFlqVXdOamMzT0Rsak16VTUxNVRSak9Ubd01URXk="
+        SECRET_KEY: ${{ secrets.SECRET_KEY }}
+        ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
         PYTHONPATH: "backend"
         DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/jobsearch_test"
       run: |
